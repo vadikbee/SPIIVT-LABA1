@@ -1,335 +1,307 @@
-import streamlit as st
+import tkinter as tk
+from tkinter import ttk
 import numpy as np
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # ==============================================================================
-# Настройка страницы и стилей
+# Класс основного приложения
 # ==============================================================================
-st.set_page_config(layout="wide", page_title="Лабораторная по нечеткой логике")
+class FuzzyLogicLabApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("🔬 Лабораторная работа: Нечеткая логика")
 
-st.title("🔬 Интерактивная лабораторная работа: Нечеткая логика")
-st.write("""
-Это веб-приложение демонстрирует основные концепции нечеткой логики, описанные в лабораторной работе.
-Используйте боковую панель для навигации по разделам.
-""")
+        # Настройка вкладок
+        self.notebook = ttk.Notebook(root)
+        self.notebook.pack(pady=10, padx=10, expand=True, fill="both")
 
-# ==============================================================================
-# Боковая панель для навигации
-# ==============================================================================
-st.sidebar.title("Навигация")
-page = st.sidebar.radio("Выберите раздел лабораторной работы:",
-                        ["Введение",
-                         "Часть 1: Функции принадлежности",
-                         "Часть 2: Операции над нечеткими множествами",
-                         "Часть 3: Нечеткая аппроксимирующая система"])
+        # Создание вкладок для каждой части
+        self.tab1 = ttk.Frame(self.notebook)
+        self.tab2 = ttk.Frame(self.notebook)
+        self.tab3 = ttk.Frame(self.notebook)
 
-# ==============================================================================
-# Раздел: Введение
-# ==============================================================================
-if page == "Введение":
-    st.header("Цель работы")
-    st.markdown("""
-    - Изучить основные определения теории нечётких множеств.
-    - Ознакомиться со способами задания функций принадлежности и научиться их строить.
-    - Изучить принципы построения нечётких аппроксимирующих систем.
-
-    В этой интерактивной среде вы можете изменять параметры и в реальном времени видеть, как меняются
-    результаты, что помогает лучше понять материал.
-    """)
-    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Fuzzy_logic_temperature.svg/500px-Fuzzy_logic_temperature.svg.png",
-             caption="Пример функций принадлежности для переменной 'Температура'", width=500)
-
-# ==============================================================================
-# Раздел 1: Функции принадлежности
-# ==============================================================================
-elif page == "Часть 1: Функции принадлежности":
-    st.header("Часть 1: Построение функций принадлежности (ФП)")
-    st.markdown("Выберите тип функции и настройте её параметры с помощью слайдеров.")
-
-    func_type = st.selectbox("Выберите тип ФП:",
-                             ["Треугольная (trimf)", "Трапециевидная (trapmf)",
-                              "Гауссова (gaussmf)", "Обобщенный колокол (gbellmf)",
-                              "Сигмоидная (sigmf)", "Z-образная (zmf)", "S-образная (smf)"])
-
-    fig, ax = plt.subplots()
-    # Универсальный диапазон для всех графиков
-    x = np.arange(0, 25.1, 0.1)
-
-    if func_type == "Треугольная (trimf)":
-        st.subheader("Треугольная ФП: `fuzz.trimf(x, [a, b, c])`")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            a = st.slider("Параметр 'a' (левое основание):", 0.0, 25.0, 5.0)
-        with col2:
-            b = st.slider("Параметр 'b' (вершина):", 0.0, 25.0, 10.0)
-        with col3:
-            c = st.slider("Параметр 'c' (правое основание):", 0.0, 25.0, 15.0)
+        self.notebook.add(self.tab1, text="Часть 1: Функции принадлежности")
+        self.notebook.add(self.tab2, text="Часть 2: Операции над множествами")
+        self.notebook.add(self.tab3, text="Часть 3: Аппроксимирующая система")
         
-        params = [a, b, c]
-        # Проверка корректности параметров
-        if not (a <= b <= c):
-            st.error("Ошибка: Параметры должны удовлетворять условию a <= b <= c.")
-            y = np.zeros_like(x) # Рисуем пустой график в случае ошибки
-        else:
-            y = fuzz.trimf(x, params)
-        
-        ax.plot(x, y, 'b', linewidth=2)
-        ax.set_title(f"trimf с параметрами {params}")
+        # Заполнение каждой вкладки содержимым
+        self.create_part1_ui()
+        self.create_part2_ui()
+        self.create_part3_ui()
 
-    elif func_type == "Трапециевидная (trapmf)":
-        st.subheader("Трапециевидная ФП: `fuzz.trapmf(x, [a, b, c, d])`")
-        base_params = st.slider("Основание [a, d]:", 0.0, 25.0, (3.0, 22.0))
-        top_params = st.slider("Вершина [b, c]:", 0.0, 25.0, (8.0, 15.0))
-        
-        a, d = base_params
-        b, c = top_params
+    # ==============================================================================
+    # ЧАСТЬ 1: ФУНКЦИИ ПРИНАДЛЕЖНОСТИ
+    # ==============================================================================
+    def create_part1_ui(self):
+        controls_frame = ttk.LabelFrame(self.tab1, text="Управление", padding=(10, 5))
+        controls_frame.pack(side="left", fill="y", padx=10, pady=10)
 
-        params = [a, b, c, d]
-        # Проверка корректности параметров
-        if not (a <= b <= c <= d):
-            st.error("Ошибка: Параметры должны удовлетворять условию a <= b <= c <= d.")
-            y = np.zeros_like(x) # Рисуем пустой график в случае ошибки
-        else:
-            y = fuzz.trapmf(x, params)
+        plot_frame = ttk.Frame(self.tab1)
+        plot_frame.pack(side="right", fill="both", expand=True, padx=10, pady=10)
+
+        ttk.Label(controls_frame, text="Выберите тип ФП:").pack(pady=(0, 5))
+        self.func_type_var = tk.StringVar(value="Треугольная (trimf)")
+        func_types = ["Треугольная (trimf)", "Трапециевидная (trapmf)", "Гауссова (gaussmf)",
+                      "Обобщенный колокол (gbellmf)", "Сигмоидная (sigmf)", "Z-образная (zmf)",
+                      "S-образная (smf)"]
+        func_menu = ttk.Combobox(controls_frame, textvariable=self.func_type_var, values=func_types, state='readonly', width=25)
+        func_menu.pack(pady=(0, 15))
+        func_menu.bind("<<ComboboxSelected>>", self.update_part1_controls)
+        
+        self.p1_params_frame = ttk.Frame(controls_frame)
+        self.p1_params_frame.pack(fill='x', expand=True)
+
+        self.p1_error_label_var = tk.StringVar()
+        ttk.Label(controls_frame, textvariable=self.p1_error_label_var, foreground="red").pack(pady=10)
+
+
+        self.fig1, self.ax1 = plt.subplots()
+        self.canvas1 = FigureCanvasTkAgg(self.fig1, master=plot_frame)
+        self.canvas1.get_tk_widget().pack(fill="both", expand=True)
+
+        self.p1_controls = {}
+        self.update_part1_controls()
+
+    def update_part1_controls(self, event=None):
+        for widget in self.p1_params_frame.winfo_children():
+            widget.destroy()
+
+        self.p1_controls = {}
+        func_type = self.func_type_var.get()
+        
+        if "Треугольная" in func_type:
+            self.p1_controls['a'] = self.create_slider("a (левое основание):", 0.0, 25.0, 5.0)
+            self.p1_controls['b'] = self.create_slider("b (вершина):", 0.0, 25.0, 10.0)
+            self.p1_controls['c'] = self.create_slider("c (правое основание):", 0.0, 25.0, 15.0)
+        elif "Трапециевидная" in func_type:
+            self.p1_controls['a'] = self.create_slider("a (левое основание):", 0.0, 25.0, 3.0)
+            self.p1_controls['b'] = self.create_slider("b (левая вершина):", 0.0, 25.0, 8.0)
+            self.p1_controls['c'] = self.create_slider("c (правая вершина):", 0.0, 25.0, 15.0)
+            self.p1_controls['d'] = self.create_slider("d (правое основание):", 0.0, 25.0, 22.0)
+        elif "Гауссова" in func_type:
+            self.p1_controls['mean'] = self.create_slider("Центр (mean):", 0.0, 25.0, 12.0)
+            self.p1_controls['sigma'] = self.create_slider("Ширина (sigma):", 0.1, 10.0, 2.0)
+        elif "Обобщенный колокол" in func_type:
+            self.p1_controls['a'] = self.create_slider("Ширина (a):", 0.1, 10.0, 2.0)
+            self.p1_controls['b'] = self.create_slider("Наклон (b):", 0.1, 10.0, 4.0)
+            self.p1_controls['c'] = self.create_slider("Центр (c):", 0.0, 25.0, 12.0)
+        elif "Сигмоидная" in func_type:
+            self.p1_controls['center'] = self.create_slider("Центр (center):", 0.0, 25.0, 12.0)
+            self.p1_controls['slope'] = self.create_slider("Наклон (slope):", -10.0, 10.0, 1.0)
+        elif "Z-образная" in func_type:
+            self.p1_controls['a'] = self.create_slider("Точка спада a:", 0.0, 25.0, 5.0)
+            self.p1_controls['b'] = self.create_slider("Точка спада b:", 0.0, 25.0, 15.0)
+        elif "S-образная" in func_type:
+            self.p1_controls['a'] = self.create_slider("Точка подъема a:", 0.0, 25.0, 5.0)
+            self.p1_controls['b'] = self.create_slider("Точка подъема b:", 0.0, 25.0, 15.0)
             
-        ax.plot(x, y, 'g', linewidth=2)
-        ax.set_title(f"trapmf с параметрами {params}")
+        self.update_part1_plot()
 
-    elif func_type == "Гауссова (gaussmf)":
-        st.subheader("Гауссова ФП: `fuzz.gaussmf(x, mean, sigma)`")
-        mean = st.slider("Центр (mean):", 0.0, 25.0, 12.0)
-        sigma = st.slider("Ширина (sigma):", 0.1, 10.0, 2.0)
-        y = fuzz.gaussmf(x, mean, sigma)
-        ax.plot(x, y, 'r', linewidth=2)
-        ax.set_title(f"gaussmf с центром={mean}, шириной={sigma}")
+    def create_slider(self, text, from_, to, default_val):
+        frame = ttk.Frame(self.p1_params_frame)
+        ttk.Label(frame, text=text).pack(anchor='w')
+        var = tk.DoubleVar(value=default_val)
+        slider = ttk.Scale(frame, from_=from_, to=to, orient="horizontal", variable=var, command=self.update_part1_plot)
+        slider.pack(fill='x')
+        frame.pack(pady=5, fill='x')
+        return var
 
-    elif func_type == "Обобщенный колокол (gbellmf)":
-        st.subheader("ФП 'Обобщенный колокол': `fuzz.gbellmf(x, a, b, c)`")
-        a = st.slider("Ширина (a):", 0.1, 10.0, 2.0)
-        b = st.slider("Наклон (b):", 0.1, 10.0, 4.0)
-        c = st.slider("Центр (c):", 0.0, 25.0, 12.0)
-        y = fuzz.gbellmf(x, a, b, c)
-        ax.plot(x, y, 'm', linewidth=2)
-        ax.set_title(f"gbellmf с a={a}, b={b}, c={c}")
+    def update_part1_plot(self, event=None):
+        self.p1_error_label_var.set("") 
+        self.ax1.clear()
+        x = np.arange(0, 25.1, 0.1)
+        func_type = self.func_type_var.get()
+        vals = {name: var.get() for name, var in self.p1_controls.items()}
 
-    elif func_type == "Сигмоидная (sigmf)":
-        st.subheader("Сигмоидная ФП: `fuzz.sigmf(x, center, slope)`")
-        center = st.slider("Центр (center):", 0.0, 25.0, 12.0)
-        slope = st.slider("Наклон (slope):", -10.0, 10.0, 1.0)
-        y = fuzz.sigmf(x, center, slope)
-        ax.plot(x, y, 'c', linewidth=2)
-        ax.set_title(f"sigmf с центром={center}, наклоном={slope}")
+        y = np.zeros_like(x)
+        title = ""
 
-    elif func_type == "Z-образная (zmf)":
-        st.subheader("Z-образная ФП: `fuzz.zmf(x, a, b)`")
-        params = st.slider("Точки спада [a, b]:", 0.0, 25.0, (5.0, 15.0))
-        y = fuzz.zmf(x, params[0], params[1])
-        ax.plot(x, y, 'y', linewidth=2)
-        ax.set_title(f"zmf с параметрами {params}")
+        try:
+            if "Треугольная" in func_type:
+                a, b, c = vals['a'], vals['b'], vals['c']
+                if not (a <= b <= c): self.p1_error_label_var.set("Ошибка: a <= b <= c")
+                else: y = fuzz.trimf(x, [a, b, c])
+                title = f"trimf(x, [{a:.1f}, {b:.1f}, {c:.1f}])"
+            elif "Трапециевидная" in func_type:
+                a,b,c,d = vals['a'], vals['b'], vals['c'], vals['d']
+                if not (a <= b <= c <= d): self.p1_error_label_var.set("Ошибка: a <= b <= c <= d")
+                else: y = fuzz.trapmf(x, [a, b, c, d])
+                title = f"trapmf(x, [{a:.1f}, {b:.1f}, {c:.1f}, {d:.1f}])"
+            elif "Гауссова" in func_type:
+                y = fuzz.gaussmf(x, vals['mean'], vals['sigma'])
+                title = f"gaussmf(x, mean={vals['mean']:.1f}, sigma={vals['sigma']:.1f})"
+            elif "Обобщенный колокол" in func_type:
+                y = fuzz.gbellmf(x, vals['a'], vals['b'], vals['c'])
+                title = f"gbellmf(x, a={vals['a']:.1f}, b={vals['b']:.1f}, c={vals['c']:.1f})"
+            elif "Сигмоидная" in func_type:
+                y = fuzz.sigmf(x, vals['center'], vals['slope'])
+                title = f"sigmf(x, center={vals['center']:.1f}, slope={vals['slope']:.1f})"
+            elif "Z-образная" in func_type:
+                a, b = vals['a'], vals['b']
+                if not(a <= b): self.p1_error_label_var.set("Ошибка: a <= b")
+                else: y = fuzz.zmf(x, a, b)
+                title = f"zmf(x, a={a:.1f}, b={b:.1f})"
+            elif "S-образная" in func_type:
+                a, b = vals['a'], vals['b']
+                if not(a <= b): self.p1_error_label_var.set("Ошибка: a <= b")
+                else: y = fuzz.smf(x, a, b)
+                title = f"smf(x, a={a:.1f}, b={b:.1f})"
+        except Exception as e:
+            self.p1_error_label_var.set(f"Ошибка: {e}")
+
+        self.ax1.plot(x, y, linewidth=2)
+        self.ax1.set_title(title)
+        self.ax1.grid(True)
+        self.ax1.set_ylim(-0.05, 1.05)
+        self.ax1.set_xlim(0, 25)
+        self.canvas1.draw()
+
+    # ==============================================================================
+    # ЧАСТЬ 2: ОПЕРАЦИИ НАД НЕЧЕТКИМИ МНОЖЕСТВАМИ
+    # ==============================================================================
+    def create_part2_ui(self):
+        controls_frame = ttk.LabelFrame(self.tab2, text="Управление", padding=(10, 5))
+        controls_frame.pack(side="top", fill="x", padx=10, pady=10)
         
-    elif func_type == "S-образная (smf)":
-        st.subheader("S-образная ФП: `fuzz.smf(x, a, b)`")
-        params = st.slider("Точки подъема [a, b]:", 0.0, 25.0, (5.0, 15.0))
-        y = fuzz.smf(x, params[0], params[1])
-        ax.plot(x, y, 'k', linewidth=2)
-        ax.set_title(f"smf с параметрами {params}")
+        frame_a = ttk.LabelFrame(controls_frame, text="Множество A (Гауссова ФП)")
+        frame_a.pack(side="left", padx=10, expand=True, fill="x")
+        frame_b = ttk.LabelFrame(controls_frame, text="Множество B (Гауссова ФП)")
+        frame_b.pack(side="right", padx=10, expand=True, fill="x")
 
-    ax.grid(True)
-    ax.set_ylim(-0.05, 1.05)
-    ax.set_xlim(0, 25)
-    st.pyplot(fig)
-
-
-# ==============================================================================
-# Раздел 2: Операции над нечеткими множествами
-# ==============================================================================
-elif page == "Часть 2: Операции над нечеткими множествами":
-    st.header("Часть 2: Операции над нечеткими множествами")
-    st.markdown("Настройте два нечетких множества (A и B) и посмотрите результаты операций над ними.")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("Множество A (Гауссова ФП)")
-        mean_a = st.slider("Центр A:", 0.0, 20.0, 12.0)
-        sigma_a = st.slider("Ширина A:", 0.1, 10.0, 2.0)
-
-    with col2:
-        st.subheader("Множество B (Гауссова ФП)")
-        mean_b = st.slider("Центр B:", 0.0, 20.0, 8.0)
-        sigma_b = st.slider("Ширина B:", 0.1, 10.0, 3.0)
-
-    x = np.arange(0, 20.1, 0.1)
-    A = fuzz.gaussmf(x, mean_a, sigma_a)
-    B = fuzz.gaussmf(x, mean_b, sigma_b)
-
-    # Операции
-    intersect_min = np.fmin(A, B)
-    union_max = np.fmax(A, B)
-    complement_A = 1 - A
-    
-    # Визуализация
-    st.subheader("Результаты операций")
-    fig, ((ax0, ax1), (ax2, ax3)) = plt.subplots(nrows=2, ncols=2, figsize=(12, 8))
-
-    # Исходные множества
-    ax0.plot(x, A, 'b', linewidth=1.5, label='Множество A')
-    ax0.plot(x, B, 'g', linewidth=1.5, label='Множество B')
-    ax0.set_title("Исходные множества")
-    ax0.legend()
-    ax0.grid(True)
-
-    # Пересечение (AND)
-    ax1.fill_between(x, 0, intersect_min, facecolor='orange', alpha=0.7)
-    ax1.plot(x, A, 'b:', linewidth=1)
-    ax1.plot(x, B, 'g:', linewidth=1)
-    ax1.set_title("Пересечение (min(A, B))")
-    ax1.grid(True)
-
-    # Объединение (OR)
-    ax2.fill_between(x, 0, union_max, facecolor='cyan', alpha=0.7)
-    ax2.plot(x, A, 'b:', linewidth=1)
-    ax2.plot(x, B, 'g:', linewidth=1)
-    ax2.set_title("Объединение (max(A, B))")
-    ax2.grid(True)
-    
-    # Дополнение (NOT)
-    ax3.plot(x, A, 'b:', linewidth=1, label='Множество A')
-    ax3.fill_between(x, 0, complement_A, facecolor='red', alpha=0.7, label='Дополнение A')
-    ax3.set_title("Дополнение (1 - A)")
-    ax3.legend()
-    ax3.grid(True)
-
-    for ax_ in fig.get_axes():
-        ax_.set_ylim(-0.05, 1.05)
-
-    plt.tight_layout()
-    st.pyplot(fig)
-
-
-# ==============================================================================
-# Раздел 3: Нечеткая аппроксимирующая система
-# ==============================================================================
-elif page == "Часть 3: Нечеткая аппроксимирующая система":
-    st.header("Часть 3: Аппроксимация функции `y = x^2`")
-    st.markdown("""
-    Здесь мы строим нечеткую систему (FIS) для аппроксимации функции `y = x^2` на интервале `[-1, 1]`.
-    Система использует 5 правил, основанных на данных из таблицы 1 лабораторной работы.
-    """)
-
-    # --- Функции для кэширования ---
-    @st.cache_data
-    def create_fis(sigma):
-        x_input = ctrl.Antecedent(np.arange(-1, 1.01, 0.01), 'x')
-        y_output = ctrl.Consequent(np.arange(0, 1.01, 0.01), 'y')
+        self.p2_mean_a = tk.DoubleVar(value=12.0); self.p2_sigma_a = tk.DoubleVar(value=2.0)
+        self.p2_mean_b = tk.DoubleVar(value=8.0);  self.p2_sigma_b = tk.DoubleVar(value=3.0)
         
-        x_input['bn'] = fuzz.gaussmf(x_input.universe, -1.0, sigma)
-        x_input['n']  = fuzz.gaussmf(x_input.universe, -0.6, sigma)
-        x_input['z']  = fuzz.gaussmf(x_input.universe,  0.0, sigma)
-        x_input['p']  = fuzz.gaussmf(x_input.universe,  0.4, sigma)
-        x_input['pb'] = fuzz.gaussmf(x_input.universe,  1.0, sigma)
-
-        y_output['level_1']    = fuzz.trimf(y_output.universe, [1.0, 1.0, 1.0])
-        y_output['level_036']  = fuzz.trimf(y_output.universe, [0.36, 0.36, 0.36])
-        y_output['level_0']    = fuzz.trimf(y_output.universe, [0, 0, 0])
-        y_output['level_016']  = fuzz.trimf(y_output.universe, [0.16, 0.16, 0.16])
+        ttk.Label(frame_a, text="Центр A:").pack()
+        ttk.Scale(frame_a, from_=0.0, to=20.0, orient="horizontal", variable=self.p2_mean_a, command=self.update_part2_plot).pack(fill='x', expand=True, pady=5)
+        ttk.Label(frame_a, text="Ширина A:").pack()
+        ttk.Scale(frame_a, from_=0.1, to=10.0, orient="horizontal", variable=self.p2_sigma_a, command=self.update_part2_plot).pack(fill='x', expand=True, pady=5)
+        ttk.Label(frame_b, text="Центр B:").pack()
+        ttk.Scale(frame_b, from_=0.0, to=20.0, orient="horizontal", variable=self.p2_mean_b, command=self.update_part2_plot).pack(fill='x', expand=True, pady=5)
+        ttk.Label(frame_b, text="Ширина B:").pack()
+        ttk.Scale(frame_b, from_=0.1, to=10.0, orient="horizontal", variable=self.p2_sigma_b, command=self.update_part2_plot).pack(fill='x', expand=True, pady=5)
         
-        rule1 = ctrl.Rule(x_input['bn'], y_output['level_1'])
-        rule2 = ctrl.Rule(x_input['n'],  y_output['level_036'])
-        rule3 = ctrl.Rule(x_input['z'],  y_output['level_0'])
-        rule4 = ctrl.Rule(x_input['p'],  y_output['level_016'])
-        rule5 = ctrl.Rule(x_input['pb'], y_output['level_1'])
+        self.fig2, ((self.ax2_0, self.ax2_1), (self.ax2_2, self.ax2_3)) = plt.subplots(nrows=2, ncols=2, figsize=(12, 8))
+        self.canvas2 = FigureCanvasTkAgg(self.fig2, master=self.tab2)
+        self.canvas2.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=10)
+        self.update_part2_plot()
+
+    def update_part2_plot(self, event=None):
+        x = np.arange(0, 20.1, 0.1)
+        A = fuzz.gaussmf(x, self.p2_mean_a.get(), self.p2_sigma_a.get())
+        B = fuzz.gaussmf(x, self.p2_mean_b.get(), self.p2_sigma_b.get())
+        intersect_min = np.fmin(A, B); union_max = np.fmax(A, B); complement_A = 1 - A
+        for ax in [self.ax2_0, self.ax2_1, self.ax2_2, self.ax2_3]: ax.clear()
+            
+        self.ax2_0.plot(x, A, 'b', linewidth=1.5, label='Множество A'); self.ax2_0.plot(x, B, 'g', linewidth=1.5, label='Множество B'); self.ax2_0.set_title("Исходные множества")
+        self.ax2_1.fill_between(x, 0, intersect_min, facecolor='orange', alpha=0.7); self.ax2_1.plot(x, A, 'b:', linewidth=1); self.ax2_1.plot(x, B, 'g:', linewidth=1); self.ax2_1.set_title("Пересечение (min(A, B))")
+        self.ax2_2.fill_between(x, 0, union_max, facecolor='cyan', alpha=0.7); self.ax2_2.plot(x, A, 'b:', linewidth=1); self.ax2_2.plot(x, B, 'g:', linewidth=1); self.ax2_2.set_title("Объединение (max(A, B))")
+        self.ax2_3.plot(x, A, 'b:', linewidth=1, label='Множество A'); self.ax2_3.fill_between(x, 0, complement_A, facecolor='red', alpha=0.7, label='Дополнение A'); self.ax2_3.set_title("Дополнение (1 - A)")
+
+        self.ax2_0.legend(); self.ax2_3.legend()
+        for ax_ in self.fig2.get_axes(): ax_.grid(True); ax_.set_ylim(-0.05, 1.05)
+        self.fig2.tight_layout()
+        self.canvas2.draw()
         
-        fis_control = ctrl.ControlSystem([rule1, rule2, rule3, rule4, rule5])
-        return fis_control, x_input
+    # ==============================================================================
+    # ЧАСТЬ 3: НЕЧЕТКАЯ АППРОКСИМИРУЮЩАЯ СИСТЕМА
+    # ==============================================================================
+    def create_part3_ui(self):
+        left_frame = ttk.Frame(self.tab3); left_frame.pack(side="left", fill="y", padx=10, pady=10)
+        right_frame = ttk.Frame(self.tab3); right_frame.pack(side="right", fill="both", expand=True, padx=10, pady=10)
+        controls_frame = ttk.LabelFrame(left_frame, text="Тестирование системы"); controls_frame.pack(fill='x', pady=5, ipady=5)
+        
+        self.p3_input_x = tk.DoubleVar(value=-0.09)
+        ttk.Label(controls_frame, text="Выберите входное значение 'x':").pack(pady=(10,0))
+        ttk.Scale(controls_frame, from_=-1.0, to=1.0, orient='horizontal', variable=self.p3_input_x, command=self.p3_on_input_change).pack(fill='x', padx=10, pady=5)
+        self.p3_output_label_var = tk.StringVar()
+        ttk.Label(controls_frame, textvariable=self.p3_output_label_var, font=("Helvetica", 14), foreground="blue").pack(pady=20)
+        
+        self.fig3_sim, self.ax3_sim = plt.subplots(figsize=(6, 4))
+        self.canvas3_sim = FigureCanvasTkAgg(self.fig3_sim, master=left_frame); self.canvas3_sim.get_tk_widget().pack(fill='both', expand=True, pady=(10,0))
+        self.fig3_resp, self.ax3_resp = plt.subplots(figsize=(8, 6))
+        self.canvas3_resp = FigureCanvasTkAgg(self.fig3_resp, master=right_frame); self.canvas3_resp.get_tk_widget().pack(fill='both', expand=True)
+        
+        self.x_points_v2 = np.array([-1, -0.6, 0.2, 0.4, 1])
+        self.y_points_v2 = np.array([-1, -1.67, 5, 2.5, 1])
+        self.p3_build_and_update_all()
+        
+    def p3_create_fis(self):
+        x_input = ctrl.Antecedent(np.linspace(-1.1, 1.1, 301), 'x')
+        y_output = ctrl.Consequent(np.linspace(-2, 5.5, 301), 'y')
+        term_names = ['term1', 'term2', 'term3', 'term4', 'term5']
+        centers = self.x_points_v2
 
-    # --- Интерфейс ---
-    st.sidebar.subheader("Параметры системы")
-    sigma = st.sidebar.slider("Ширина (sigma) для всех ФП входа:", 0.05, 0.5, 0.15)
-    
-    fis_control, x_input = create_fis(sigma)
-    fis_simulation = ctrl.ControlSystemSimulation(fis_control)
+        # --- ИСПРАВЛЕНИЕ ---
+        # Возвращен ручной, но корректный способ создания ФП по заданным точкам
+        for i, center_val in enumerate(centers):
+            b = center_val
+            a = centers[i - 1] if i > 0 else b
+            c = centers[i + 1] if i < len(centers) - 1 else b
+            x_input[term_names[i]] = fuzz.trimf(x_input.universe, [a, b, c])
 
-    col1, col2 = st.columns(2)
+        level_names = ['level_n1', 'level_n1_67', 'level_5', 'level_2_5', 'level_1']
+        for i, value in enumerate(self.y_points_v2):
+            y_output[level_names[i]] = fuzz.trimf(y_output.universe, [value, value, value])
+        
+        rules = [ctrl.Rule(x_input[term_names[i]], y_output[level_names[i]]) for i in range(len(term_names))]
+        return ctrl.ControlSystem(rules), x_input
 
-    with col1:
-        st.subheader("1. Функции принадлежности для входа 'x'")
-        fig_mf, ax_mf = plt.subplots()
-        for term_name, term_obj in x_input.terms.items():
-            ax_mf.plot(x_input.universe, term_obj.mf, label=term_name)
-        ax_mf.set_title(f"ФП для входа при sigma={sigma:.2f}")
-        ax_mf.grid(True)
-        ax_mf.legend()
-        st.pyplot(fig_mf)
+    def p3_build_and_update_all(self):
+        self.p3_fis_control, self.p3_x_input = self.p3_create_fis()
+        self.p3_update_response_curve_plot()
+        self.p3_on_input_change() 
 
-        st.subheader("2. Правила системы")
-        st.code("""
-        1. IF (x IS bn) THEN (y IS 1.0)
-        2. IF (x IS n)  THEN (y IS 0.36)
-        3. IF (x IS z)  THEN (y IS 0.0)
-        4. IF (x IS p)  THEN (y IS 0.16)
-        5. IF (x IS pb) THEN (y IS 1.0)
-        """, language="none")
-
-    with col2:
-        st.subheader("3. Тестирование системы (аналог Rule Viewer)")
-        input_x = st.slider("Выберите входное значение 'x':", -1.0, 1.0, -0.09, 0.01) # Установил ваше значение по умолчанию
+    def p3_on_input_change(self, event=None):
+        fis_simulation = ctrl.ControlSystemSimulation(self.p3_fis_control)
+        input_x = self.p3_input_x.get()
         fis_simulation.input['x'] = input_x
-        fis_simulation.compute()
-        output_y = fis_simulation.output['y']
+        
+        try:
+            fis_simulation.compute()
+            output_y = fis_simulation.output.get('y')
+            if output_y is not None:
+                self.p3_output_label_var.set(f"Выход 'y' для x={input_x:.2f}:\n {output_y:.4f}")
+            else:
+                self.p3_output_label_var.set(f"Выход 'y' для x={input_x:.2f}:\n НЕ ВЫЧИСЛЕН")
+        except Exception as e:
+             self.p3_output_label_var.set(f"ОШИБКА ВЫЧИСЛЕНИЯ:\n{e}")
 
-        st.metric(label=f"Выход 'y' для x = {input_x}", value=f"{output_y:.4f}")
+        self.p3_update_simulation_plot(input_x)
 
-        # ======== НАЧАЛО ИЗМЕНЕНИЙ ========
-        # Создаем график для визуализации активации правил вручную
-        fig_sim, ax_sim = plt.subplots()
-
-        # Рисуем все функции принадлежности
-        for term_name, term_obj in x_input.terms.items():
-            ax_sim.plot(x_input.universe, term_obj.mf, label=term_name)
-
-            # Вычисляем степень активации для текущего входа
-            activation_level = fuzz.interp_membership(x_input.universe, term_obj.mf, input_x)
-            
-            # Создаем "срезанную" версию ФП для заливки
+    def p3_update_simulation_plot(self, input_x):
+        self.ax3_sim.clear()
+        for term_name, term_obj in self.p3_x_input.terms.items():
+            self.ax3_sim.plot(self.p3_x_input.universe, term_obj.mf, label=term_name)
+            activation_level = fuzz.interp_membership(self.p3_x_input.universe, term_obj.mf, input_x)
             capped_mf = np.fmin(activation_level, term_obj.mf)
-            ax_sim.fill_between(x_input.universe, 0, capped_mf, alpha=0.4)
+            self.ax3_sim.fill_between(self.p3_x_input.universe, 0, capped_mf, alpha=0.4)
+        self.ax3_sim.axvline(x=input_x, color='k', linestyle='--', linewidth=2, label=f'Вход x={input_x:.2f}')
+        self.ax3_sim.set_title(f"Активация ФП для x = {input_x:.2f}")
+        self.ax3_sim.grid(True); self.ax3_sim.legend(fontsize='small'); self.ax3_sim.set_ylim(-0.05, 1.05)
+        self.fig3_sim.tight_layout()
+        self.canvas3_sim.draw()
 
-        # Рисуем вертикальную линию, показывающую текущее значение входа
-        ax_sim.axvline(x=input_x, color='k', linestyle='--', linewidth=2, label=f'Вход x={input_x:.2f}')
+    def p3_update_response_curve_plot(self):
+        self.ax3_resp.clear()
         
-        ax_sim.set_title(f"Активация ФП для x = {input_x:.2f}")
-        ax_sim.grid(True)
-        ax_sim.legend()
-        st.pyplot(fig_sim)
-        # ======== КОНЕЦ ИЗМЕНЕНИЙ ========
+        x_values = np.linspace(-1, 1, 201)
+        y_values = np.interp(x_values, self.x_points_v2, self.y_points_v2)
 
-
-    st.subheader("4. Поверхность отклика (результат аппроксимации)")
-    
-    @st.cache_data
-    def calculate_response_curve(_fis_control):
-        x_values = np.linspace(-1, 1, 101)
-        y_values = np.zeros_like(x_values)
-        temp_sim = ctrl.ControlSystemSimulation(_fis_control)
+        self.ax3_resp.plot(x_values, y_values, 'b', linewidth=2, label='Выход нечеткой системы')
+        self.ax3_resp.plot(self.x_points_v2, self.y_points_v2, 'ro', markersize=8, label='Исходные точки (Вариант 2)')
         
-        for i, x_val in enumerate(x_values):
-            temp_sim.input['x'] = x_val
-            temp_sim.compute()
-            y_values[i] = temp_sim.output['y']
-        return x_values, y_values
+        self.ax3_resp.set_title('Результат аппроксимации (Вариант 2)'); self.ax3_resp.set_xlabel('Вход: x'); self.ax3_resp.set_ylabel('Выход: y')
+        self.ax3_resp.grid(True); self.ax3_resp.legend()
+        self.fig3_resp.tight_layout()
+        self.canvas3_resp.draw()
 
-    x_vals, y_vals = calculate_response_curve(fis_control)
-    y_ideal = x_vals**2
-
-    fig_resp, ax_resp = plt.subplots(figsize=(10, 6))
-    ax_resp.plot(x_vals, y_vals, 'b', linewidth=2, label='Выход нечеткой системы')
-    ax_resp.plot(x_vals, y_ideal, 'r--', linewidth=2, label='Идеальная функция y = x^2')
-    ax_resp.set_title('Сравнение результата аппроксимации с идеальной функцией')
-    ax_resp.set_xlabel('Вход: x')
-    ax_resp.set_ylabel('Выход: y')
-    ax_resp.grid(True)
-    ax_resp.legend()
-    st.pyplot(fig_resp)
-    st.info("Попробуйте изменить параметр `sigma` на боковой панели и посмотрите, как это повлияет на точность аппроксимации.")
+# ==============================================================================
+# Точка входа
+# ==============================================================================
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = FuzzyLogicLabApp(root)
+    root.mainloop()
